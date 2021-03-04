@@ -1,6 +1,7 @@
 import telebot
 import config
 import downloader
+import messages
 
 bot = telebot.TeleBot(config.TOKEN)
 
@@ -11,12 +12,14 @@ mk_button_playlists = telebot.types.KeyboardButton('▶ Playlists')
 main_keyboard = telebot.types.ReplyKeyboardMarkup(resize_keyboard=True)
 main_keyboard.add(mk_button_search)
 main_keyboard.add(mk_button_playlists)
+
+
 # main_keyboard.add(mk_button_options)
 
 
 @bot.message_handler(commands=['start', 'help'])
 def start(message):
-    bot.send_message(message.chat.id, config.START_MESSAGE, parse_mode='Markdown', reply_markup=main_keyboard)
+    bot.send_message(message.chat.id, messages.start, parse_mode='Markdown', reply_markup=main_keyboard)
 
 
 @bot.message_handler(commands=['reset'])
@@ -30,8 +33,10 @@ def start(message):
 
 @bot.message_handler(content_types=['text'])
 def process(message):
+    # todo все обработчики - в отдельный файл
+    # todo использовать сессии
     if message.text == '🔍 Search' and not config.IS_WAITING_FOR_SEARCH and not config.IS_SEARCH_PROCESS_RUNNING and not config.IS_WAITING_FOR_SEARCH_OPTION_SELECTION and not config.IS_PROCESSING_AUDIO:
-        bot.send_message(message.chat.id, "What song do you want to listen?")
+        bot.send_message(message.chat.id, messages.search_prompt)
         config.IS_WAITING_FOR_SEARCH = True
     elif config.IS_WAITING_FOR_SEARCH:
         bot.send_message(message.chat.id, "Searching...")
@@ -49,7 +54,8 @@ def process(message):
             downloader.download_audio(config.IDS[int(message.text)])
             config.IDS.clear()
             type_markup = telebot.types.InlineKeyboardMarkup(row_width=2)
-            type_markup.add(telebot.types.InlineKeyboardButton("Voice message", callback_data='voice'), telebot.types.InlineKeyboardButton("Audio file", callback_data='file'))
+            type_markup.add(telebot.types.InlineKeyboardButton("Voice message", callback_data='voice'),
+                            telebot.types.InlineKeyboardButton("Audio file", callback_data='file'))
             bot.send_message(message.chat.id, "How should I send you the music?", reply_markup=type_markup)
         else:
             bot.send_message(message.chat.id, "The number is irregular, please select one of the options")
@@ -66,7 +72,8 @@ def callback_method(call):
                 bot.send_voice(call.message.chat.id, audio)
             elif call.data == 'file':
                 bot.send_document(call.message.chat.id, audio)
-            bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.message_id, text="How should I send you the music?", reply_markup=None)
+            bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.message_id,
+                                  text="How should I send you the music?", reply_markup=None)
             config.IS_PROCESSING_AUDIO = False
             audio.close()
     except Exception as e:
